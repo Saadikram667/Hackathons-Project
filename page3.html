@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuminaNeuro | Diagnostic Dossier</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            /* Graphite Theme Backgrounds */
+            --bg: #1E293B; 
+            --main: #FFFFFF; 
+            --muted: #94A3B8; 
+            --card: rgba(15, 15, 20, 0.8); 
+            --theme-color: #10B981; 
+            --theme-glow: rgba(16, 185, 129, 0.2);
+            --theme-bg: rgba(16, 185, 129, 0.05);
+            
+            /* STATIC BRANDING (Never changes) */
+            --brand-color: #2DD4BF; 
+            
+            /* DYNAMIC ALERTS (Changes based on scan risk) */
+            --alert-color: #2DD4BF; 
+            --alert-glow: rgba(45, 212, 191, 0.25);
+            --alert-bg: rgba(45, 212, 191, 0.05);
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--main); overflow: hidden; height: 100vh; display: flex; flex-direction: column; transition: opacity 0.2s; }
+
+        .page-shutter { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg); z-index: 10000; transform: scaleY(1); transform-origin: bottom; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        body.loaded .page-shutter { transform: scaleY(0); transform-origin: top; }
+        body.exiting .page-shutter { transform: scaleY(1); transform-origin: bottom; }
+
+        #bg-video { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 100%; min-height: 100%; object-fit: cover; opacity: 0.15; z-index: -5; filter: grayscale(100%); transition: filter 0.4s ease; }
+        .tech-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px; z-index: -4; }
+        
+        /* TOP NAVIGATION (Uses Brand Colors) */
+        .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; background: rgba(0,0,0,0.5); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); z-index: 100; }
+        .logo { font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .logo i { color: var(--alert-color); transition: 0.4s; }
+        
+        .stepper { display: flex; align-items: center; gap: 15px; }
+        .step { display: flex; flex-direction: column; align-items: center; gap: 6px; opacity: 0.5; }
+        .step.active { opacity: 1; }
+        .step.completed .circle { background: rgba(255,255,255,0.1); color: var(--main); border: none; }
+        .circle { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; background: transparent; }
+        .step.active .circle { background: var(--alert-color); border-color: var(--alert-color); color: #000; transition: 0.4s; }
+        .step span { font-size: 0.7rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+        .step-line { width: 40px; height: 2px; background: rgba(255,255,255,0.1); margin-bottom: 15px; }
+
+        .dev-toggle { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-family: 'IBM Plex Mono', monospace; transition: 0.15s; }
+        .dev-toggle:hover { background: rgba(255,255,255,0.25); }
+
+        .content-layer { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden; }
+        
+        /* 3-COLUMN LAYOUT */
+        .dossier-card { background: var(--card); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border-radius: 20px; width: 100%; max-width: 1150px; display: grid; grid-template-columns: 260px 260px 1fr; border: 2px solid var(--alert-glow); box-shadow: 0 0 60px var(--alert-glow), 0 0 80px var(--alert-bg); overflow: hidden; transition: 0.4s; }
+        
+        /* Column 1 */
+        .col-left { padding: 30px; border-right: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); display: flex; flex-direction: column; justify-content: flex-start; }
+        .data-block { margin-bottom: 15px; }
+        .data-block span { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 4px; }
+        .data-block strong { font-size: 1rem; font-weight: 500; letter-spacing: 0.02em; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .info-grid .data-block { margin-bottom: 0; }
+        .scan-visual { width: 100%; max-width: 200px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: none; margin-top: auto; object-fit: cover; }
+
+        /* Column 2 (Uses Alert Colors) */
+        .col-middle { padding: 30px; border-right: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.1); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .gauge-wrapper { text-align: center; }
+        .gauge-circle { position: relative; width: 160px; height: 160px; margin: 0 auto; }
+        .gauge-svg { width: 160px; height: 160px; transform: rotate(-90deg); display: block; }
+        .gauge-text { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        .gauge-text h3 { margin: 0; padding: 0; font-family: 'IBM Plex Mono', monospace; font-size: 2.2rem; font-weight: 400; color: var(--alert-color); transition: 0.4s; line-height: 1; transform: translateY(-2px); }
+        .gauge-text span { font-family: 'IBM Plex Mono', monospace; font-size: 1.2rem; color: var(--alert-color); margin-left: 2px; font-weight: 300; transition: 0.4s; transform: translateY(-2px); }
+        .gauge-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; color: var(--muted); margin-top: 20px; display: block; letter-spacing: 0.1em; text-align: center; }
+
+        /* Column 3 (Uses Alert Colors) */
+        .col-right { padding: 30px 40px; display: flex; flex-direction: column; justify-content: center; }
+        .status-banner { padding: 15px 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--alert-color); background: var(--alert-bg); display: flex; align-items: center; gap: 15px; transition: 0.4s; }
+        .status-banner i { font-size: 1.8rem; color: var(--alert-color); transition: 0.4s; }
+        .status-banner h2 { font-family: 'IBM Plex Mono', monospace; font-size: 1.5rem; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: var(--alert-color); transition: 0.4s; }
+        
+        .system-outputs { margin-bottom: 25px; }
+        .system-outputs h4 { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .output-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .output-row span { font-size: 0.85rem; color: #CCC; }
+        .output-row strong { font-size: 0.9rem; font-weight: 600; }
+
+        .rec-box { padding: 20px; border-radius: 10px; background: rgba(255,255,255,0.02); border-left: 4px solid var(--alert-color); font-size: 0.85rem; line-height: 1.5; font-weight: 300; color: #DDD; transition: 0.4s; margin-bottom: 0; }
+
+        .reset-btn { margin-top: 25px; padding: 12px 20px; background: var(--main); color: #000; border: none; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.15s; align-self: flex-start; }
+        .reset-btn:hover { background: #E0E0E0; transform: translateY(-1px); }
+
+        footer { background: transparent; border: none; padding: 8px 20px; display: flex; align-items: center; gap: 10px; font-size: 0.7rem; color: #94A3B8; line-height: 1.4; margin-top: auto; opacity: 0.5; }
+        .footer i { color: var(--alert-color); transition: 0.4s; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+<div class="page-shutter" id="shutter"></div>
+<video id="bg-video" muted playsinline loop autoplay><source src="brain_cinematic.mp4" type="video/mp4"></video>
+<div class="tech-grid"></div>
+
+<header class="top-nav">
+    <div class="logo"><i class="fa-solid fa-brain" id="logo-icon"></i> LuminaNeuro</div>
+    <div class="stepper">
+        <div class="step completed"><div class="circle"><i class="fa-solid fa-check"></i></div><span>Patient Info</span></div>
+        <div class="step-line"></div>
+        <div class="step completed"><div class="circle"><i class="fa-solid fa-check"></i></div><span>Symptom Matrix</span></div>
+        <div class="step-line"></div>
+        <div class="step active"><div class="circle">3</div><span>Screening Result</span></div>
+    </div>
+    <button id="dev-toggle" class="dev-toggle"><i class="fa-solid fa-laptop-code"></i> Toggle Clean/Detected</button>
+</header>
+
+<div class="content-layer">
+    <div class="dossier-card" id="dossier">
+        
+        <div class="col-left">
+            <div class="data-block"><span>SUBJECT_ID</span><strong id="d-id"></strong></div>
+            <div class="data-block"><span>PATIENT_NAME</span><strong id="d-fullname"></strong></div>
+            
+            <div class="info-grid">
+                <div class="data-block"><span>D.O.B</span><strong id="d-dob"></strong></div>
+                <div class="data-block"><span>GENDER</span><strong id="d-gender"></strong></div>
+            </div>
+            
+            <div class="data-block"><span>MATRIX_REF</span><strong id="d-mri"></strong></div>
+            
+            <div style="position: relative; width: 100%; max-width: 200px; margin-top: auto; border-radius: 12px;">
+                <img id="d-heatmap" class="scan-visual" src="" alt="AI Thermal Map" style="margin-top: 0; position: relative; z-index: 1;">
+    
+            <div id="heatmap-glow" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 12px; background: radial-gradient(circle at 60% 45%, rgba(225, 29, 72, 0.7) 0%, rgba(234, 88, 12, 0.4) 30%, transparent 65%); mix-blend-mode: screen; z-index: 2; pointer-events: none;"></div>
+            </div>
+        </div>
+
+        <div class="col-middle">
+            <div class="gauge-wrapper">
+                <div class="gauge-circle">
+                    <svg class="gauge-svg" viewBox="0 0 160 160">
+                        <circle cx="80" cy="80" r="72" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+                        <circle id="g-fill" cx="80" cy="80" r="72" fill="none" stroke="var(--alert-color)" stroke-width="8" stroke-dasharray="452" stroke-dashoffset="452" stroke-linecap="round" style="transition: 0.8s cubic-bezier(0.16, 1, 0.3, 1);"/>
+                    </svg>
+                    <div class="gauge-text"><h3 id="g-text">--</h3><span>%</span></div>
+                </div>
+            </div>
+            <span class="gauge-label">STRUCTURAL CONFIDENCE</span>
+        </div>
+
+        <div class="col-right">
+            <div class="status-banner" id="banner">
+                <i id="b-icon" class="fa-solid fa-shield-check"></i>
+                <h2 id="b-text">SCAN NOMINAL</h2>
+            </div>
+
+            <div class="system-outputs">
+                <h4>System Outputs</h4>
+                <div class="output-row">
+                    <span>Predicted Classification</span>
+                    <strong id="out-class">—</strong>
+                </div>
+                <div class="output-row">
+                    <span>Model Confidence</span>
+                    <strong id="out-conf">—</strong>
+                </div>
+                <div class="output-row">
+                    <span>Risk Severity</span>
+                    <strong id="out-risk">—</strong>
+                </div>
+                <div class="output-row" id="symp-row" style="display:none;">
+                    <span>Symptom Matrix Correlation</span>
+                    <strong id="out-symp">—</strong>
+                </div>
+            </div>
+
+            <div class="system-outputs" style="margin-bottom: 0;">
+                <h4>Recommendation</h4>
+                <div class="rec-box" id="rec-box"></div>
+            </div>
+
+            <button class="reset-btn" onclick="resetApp()">
+                <i class="fa-solid fa-arrow-rotate-left"></i> INITIALIZE NEW SCAN
+            </button>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    <i class="fa-solid fa-shield-halved" id="footer-icon"></i> 
+    <span><strong>Disclaimer:</strong> Preliminary screening framework only. Secure professional medical consultation for diagnostic evaluation.</span>
+</footer>
+
+<script>
+    window.addEventListener('load', () => { document.body.classList.add('loaded'); });
+
+    function resetApp() {
+        document.body.classList.remove('loaded');
+        document.body.classList.add('exiting');
+        setTimeout(() => { window.location.href = 'index.html'; }, 200); 
+    }
+
+    let det = localStorage.getItem('tumor_detected') === 'true';
+    let conf = parseFloat(localStorage.getItem('confidence') || '0');
+    let type = localStorage.getItem('tumor_type') || 'None Detected';
+    let risk = localStorage.getItem('risk_level') || 'Baseline';
+    
+    const ansRaw = localStorage.getItem('symptom_answers');
+    const ans = ansRaw ? JSON.parse(ansRaw) : [];
+
+    document.getElementById('d-id').textContent = localStorage.getItem('pt_id') || 'UNKNOWN_ID';
+    document.getElementById('d-fullname').textContent = localStorage.getItem('pt_fullname') || 'UNKNOWN_NAME';
+    document.getElementById('d-dob').textContent = localStorage.getItem('pt_dob') || 'N/A';
+    document.getElementById('d-gender').textContent = localStorage.getItem('pt_gender') || 'N/A';
+    document.getElementById('d-mri').textContent = localStorage.getItem('pt_mri') || 'N/A';
+
+    function renderUI() {
+    const root = document.documentElement;
+    let alertColor, alertGlow, alertBg;
+
+    // Convert the risk to uppercase just to be completely safe
+    const currentRisk = risk.toUpperCase();
+
+    // 1. Check for the exact words Python is sending!
+    if (det && currentRisk === 'CRITICAL') {
+        alertColor = '#E11D48'; // Crimson Red
+        alertGlow = 'rgba(225, 29, 72, 0.25)';
+        alertBg = 'rgba(225, 29, 72, 0.05)';
+    } else if (det && currentRisk === 'ELEVATED') {
+        alertColor = '#EA580C'; // Warning Orange
+        alertGlow = 'rgba(234, 88, 12, 0.25)';
+        alertBg = 'rgba(234, 88, 12, 0.05)';
+    } else {
+        alertColor = '#2DD4BF'; // Safe Teal
+        alertGlow = 'rgba(45, 212, 191, 0.25)';
+        alertBg = 'rgba(45, 212, 191, 0.05)';
+    }
+
+    root.style.setProperty('--alert-color', alertColor);
+    root.style.setProperty('--alert-glow', alertGlow);
+    root.style.setProperty('--alert-bg', alertBg);
+
+    // Adjust background video hue based on the new risk words
+    if (det && currentRisk === 'CRITICAL') {
+        document.getElementById('bg-video').style.filter = 'grayscale(80%) sepia(100%) hue-rotate(315deg) saturate(200%) opacity(0.3)';
+    } else if (det) {
+        document.getElementById('bg-video').style.filter = 'grayscale(80%) sepia(100%) hue-rotate(350deg) saturate(200%) opacity(0.3)';
+    } else {
+        document.getElementById('bg-video').style.filter = 'grayscale(80%) sepia(100%) hue-rotate(150deg) saturate(150%) opacity(0.3)';
+    }
+
+    // ... (the rest of the function stays exactly the same) ...
+        // Adjust background video hue
+        if (det && risk === 'High') {
+            document.getElementById('bg-video').style.filter = 'grayscale(80%) sepia(100%) hue-rotate(315deg) saturate(200%) opacity(0.3)';
+        } else if (det) {
+            document.getElementById('bg-video').style.filter = 'grayscale(80%) sepia(100%) hue-rotate(350deg) saturate(200%) opacity(0.3)';
+        } else {
+            document.getElementById('bg-video').style.filter = 'grayscale(80%) sepia(100%) hue-rotate(150deg) saturate(150%) opacity(0.3)';
+        }
+
+        document.getElementById('b-text').textContent = det ? 'POSSIBLE TUMOR DETECTED' : 'SCAN NOMINAL';
+        document.getElementById('b-icon').className = det ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-shield-check';
+        
+        document.getElementById('out-class').textContent = det ? type : 'None Detected';
+        document.getElementById('out-conf').textContent = conf.toFixed(2) + '%';
+        document.getElementById('out-risk').textContent = det ? risk : 'Baseline';
+
+        document.getElementById('g-text').textContent = conf.toFixed(1);
+        
+        const fill = document.getElementById('g-fill');
+        fill.style.transition = 'none';
+        fill.setAttribute('stroke-dashoffset', 452);
+        
+        setTimeout(() => {
+            fill.style.transition = '0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+            fill.setAttribute('stroke-dashoffset', 452 * (1 - conf/100));
+        }, 50);
+
+        const heatmapImg = document.getElementById('d-heatmap');
+        const heatmapGlow = document.getElementById('heatmap-glow');
+
+            // Grab the image we saved on the homepage!
+        const savedHeatmap = localStorage.getItem('mri_image_data');
+
+        if(savedHeatmap) {
+                             heatmapImg.src = savedHeatmap;
+                            heatmapImg.style.display = 'block';
+                             heatmapImg.style.borderColor = alertColor;
+                            heatmapImg.style.boxShadow = `0 10px 30px ${alertGlow}`;
+
+    // MAGIC TRICK: Turn on the thermal glow ONLY if a tumor is detected!
+        if (det) {
+                heatmapGlow.style.display = 'block';
+        } else {
+                heatmapGlow.style.display = 'none';
+        }
+        } else {
+                heatmapImg.style.display = 'none';
+                heatmapGlow.style.display = 'none';
+        }
+
+        const sympRow = document.getElementById('symp-row');
+        if(det && ans.length) {
+            sympRow.style.display = 'flex';
+            const yesRatio = ans.filter(a => a === 'yes').length / ans.length;
+            const sympText = document.getElementById('out-symp');
+            sympText.textContent = yesRatio >= 0.5 ? 'Strong Support' : 'Weak Correlation';
+            sympText.style.color = yesRatio >= 0.5 ? alertColor : '#CCC';
+        } else {
+            sympRow.style.display = 'none';
+        }
+
+        // FILLS IN THE RECOMMENDATION TEXT (Safely locked)
+        const recBox = document.getElementById('rec-box');
+        if (recBox) {
+            recBox.innerHTML = det 
+                ? `<strong style="color:var(--alert-color); font-weight:600;"><i class="fa-solid fa-user-doctor"></i> Consultation Advised:</strong><br><br><span style="color:#FFFFFF;">Automated vector systems localized anomalies matching structural classifications. Consult a qualified neurologist or radiologist for official evaluation.</span>` 
+                : `<strong style="color:var(--alert-color); font-weight:600;"><i class="fa-solid fa-check-double"></i> Status Clear:</strong><br><br><span style="color:#FFFFFF;">Voxel analysis reveals no trained anomaly patterns. Standard observation protocols apply. No immediate action required.</span>`;
+        }
+    }
+
+    renderUI();
+
+    document.getElementById('dev-toggle').addEventListener('click', () => {
+        det = !det;
+        conf = det ? 81.52 : 93.80;
+        type = det ? 'Meningioma' : 'None Detected';
+        risk = det ? 'Moderate' : 'Baseline';
+        renderUI();
+    });
+</script>
+</body>
+</html>

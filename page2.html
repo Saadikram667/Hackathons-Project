@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuminaNeuro | Clinical Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { 
+            /* Deep Slate Gray background (gives contrast, but NO white shades!) */
+            --bg: #1E293B; 
+            
+            /* Pure White text for readability */
+            --main: #FFFFFF; 
+            --muted: #94A3B8; 
+            
+            --card: rgba(15, 15, 20, 0.8); 
+            --theme-color: #10B981; 
+            --theme-glow: rgba(16, 185, 129, 0.2);
+            --theme-bg: rgba(16, 185, 129, 0.05);
+            
+            /* Your signature Neon Teal accent */
+            --theme-color: #2DD4BF; 
+            --theme-glow: rgba(45, 212, 191, 0.25);
+            --theme-bg: rgba(45, 212, 191, 0.05);
+            
+            /* Deep shadow to make the dark panel pop off the gray background */
+            --shadow: 0 30px 60px rgba(0, 0, 0, 0.6); 
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--main); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+
+        .page-shutter { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1E293B; z-index: 10000; transform: scaleY(1); transform-origin: bottom; transition: transform 0.7s cubic-bezier(0.85, 0, 0.15, 1); }
+        body.loaded .page-shutter { transform: scaleY(0); transform-origin: top; }
+        body.exiting .page-shutter { transform: scaleY(1); transform-origin: bottom; }
+
+        /* Background Effects */
+        #bg-video { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 100%; min-height: 100%; object-fit: cover; opacity: 0.15; z-index: -5; filter: grayscale(100%); }
+        .tech-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px); background-size: 40px 40px; z-index: -4; }
+
+        /* Top Navigation & Stepper */
+        .top-nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: rgba(0,0,0,0.5); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05); z-index: 100; }
+        .logo { font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .logo i { color: var(--theme-color); }
+        
+        .stepper { display: flex; align-items: center; gap: 15px; }
+        .step { display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0.5; }
+        .step.active { opacity: 1; }
+        .step.completed .circle { background: rgba(255,255,255,0.1); color: var(--main); border: none; }
+        .circle { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--muted); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; background: transparent; }
+        .step.active .circle { background: var(--theme-color); border-color: var(--theme-color); color: #000; }
+        .step span { font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+        .step-line { width: 40px; height: 2px; background: rgba(255,255,255,0.1); margin-bottom: 20px; }
+
+        .dev-toggle { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-family: 'IBM Plex Mono', monospace; transition: 0.3s; }
+        .dev-toggle:hover { background: rgba(255,255,255,0.2); }
+
+        /* 2-Column Split Layout */
+        .content-layer { flex-grow: 1; display: grid; grid-template-columns: 350px 1fr; gap: 30px; max-width: 1400px; margin: 0 auto; height: 100%; width: 100%; padding: 40px; overflow: hidden; }
+
+        /* Left Console */
+        .sys-console { background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 30px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .sys-console::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--theme-color); }
+        .console-header { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--theme-color); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.1em; }
+        .log-readout { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: #A7F3D0; line-height: 1.8; }
+        .val { color: var(--main); font-weight: 600; }
+
+        /* Right Dashboard */
+        .glass-panel { background: var(--card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(45, 212, 191, 0.3); border-radius: 20px; padding: 40px; box-shadow: 0 0 40px rgba(45, 212, 191, 0.15), 0 0 80px rgba(45, 212, 191, 0.05); display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+        .panel-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+        .panel-header h2 { font-size: 2rem; font-weight: 500; }
+        .progress-box { margin-bottom: 25px; }
+        .progress-labels { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--theme-color); margin-bottom: 10px; }
+        .progress-track { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--theme-color); width: 0%; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+
+        /* Scrollable Questions Box */
+        .q-scroll-area { flex-grow: 1; overflow-y: auto; padding-right: 20px; margin-bottom: 20px; min-height: 0; }
+        .q-scroll-area::-webkit-scrollbar { width: 6px; }
+        .q-scroll-area::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 10px; }
+        .q-scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+
+        .question-card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; }
+        .question-card.answered { border-color: var(--theme-glow); background: rgba(56,189,248,0.03); }
+        .q-text { font-size: 0.95rem; font-weight: 300; padding-right: 20px; line-height: 1.5; }
+
+        .toggle-group { display: flex; background: #000; padding: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .toggle-group label { margin: 0; cursor: pointer; padding: 8px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--muted); border-radius: 6px; transition: 0.3s; }
+        .toggle-group input { display: none; }
+        .toggle-group input[value="yes"]:checked + label { background: var(--theme-color); color: #000; font-weight: 600; }
+        .toggle-group input[value="no"]:checked + label { background: #222; color: var(--main); }
+
+        .submit-btn { width: 100%; padding: 18px; background: var(--main); color: #000; border: none; border-radius: 12px; font-weight: 600; font-size: 1rem; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; transition: 0.3s; margin-top: auto; flex-shrink: 0; }
+        .submit-btn:hover { background: #E0E0E0; transform: translateY(-2px); }
+        
+        /* Footer */
+        footer { background: transparent; border: none; padding: 8px 20px; display: flex; align-items: center; gap: 10px; font-size: 0.7rem; color: #94A3B8; line-height: 1.4; margin-top: auto; opacity: 0.5; }
+        .footer i { color: var(--brand-color); font-size: 0.9rem; }
+
+    </style>
+</head>
+<body>
+
+<div class="page-shutter"></div>
+
+<video id="bg-video" muted playsinline loop autoplay><source src="brain_cinematic.mp4" type="video/mp4"></video>
+<div class="tech-grid"></div>
+
+<header class="top-nav">
+    <div class="logo"><i class="fa-solid fa-brain"></i> LuminaNeuro</div>
+    
+    <div class="stepper">
+        <div class="step completed"><div class="circle"><i class="fa-solid fa-check"></i></div><span>Patient Info</span></div>
+        <div class="step-line"></div>
+        <div class="step active"><div class="circle">2</div><span>Symptom Matrix</span></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="circle">3</div><span>Screening Result</span></div>
+    </div>
+
+    <button id="dev-toggle" class="dev-toggle" onclick="autoAnswer()"><i class="fa-solid fa-bolt"></i> Auto-Answer (Dev)</button>
+</header>
+
+<div class="content-layer">
+    <div class="sys-console">
+        <div class="console-header"><i class="fa-solid fa-satellite-dish fa-spin" style="margin-right:8px;"></i> MATRIX_LOG</div>
+        <div class="log-readout" id="log-readout"></div>
+    </div>
+
+    <div class="glass-panel">
+        <div class="panel-header">
+            <h2>Clinical Correlator</h2>
+        </div>
+
+        <div class="progress-box">
+            <div class="progress-labels"><span>COMPLETION STATUS</span><span id="p-text">0 / 8</span></div>
+            <div class="progress-track"><div class="progress-fill" id="p-fill"></div></div>
+        </div>
+
+        <div class="q-scroll-area" id="q-container"></div>
+
+        <button class="submit-btn" onclick="submitAnswers()">COMPILE FINAL REPORT <i class="fa-solid fa-file-contract"></i></button>
+    </div>
+</div>
+
+<footer class="footer">
+    <i class="fa-solid fa-shield-halved"></i> 
+    <span><strong>Disclaimer:</strong> Preliminary screening framework only. Secure professional medical consultation for diagnostic evaluation.</span>
+</footer>
+
+<script>
+    window.addEventListener('load', () => { setTimeout(() => document.body.classList.add('loaded'), 100); });
+
+    const QUESTIONS = {
+        'Glioma': ['Persistent, increasingly severe headaches?', 'Unexplained seizures or sudden convulsions?', 'Gradual vision impairment (double vision or blurriness)?', 'Focal weakness, loss of balance, or localized numbness?', 'Difficulty with speech or understanding language?', 'Memory loss or significant cognitive impairment?', 'Nausea or vomiting without a clear cause?', 'Noticeable personality or behavioral changes?'],
+        'Meningioma': ['Persistent headaches worse in the morning?', 'Unexplained seizures or convulsions?', 'Progressive vision or hearing changes?', 'Weakness or numbness on one side of the body?', 'Changes in sense of smell?', 'Difficulty with balance or coordination?', 'Memory loss or cognitive impairment?', 'Nausea or vomiting without a clear cause?'],
+        'Pituitary Tumor': ['Persistent headaches behind or around the eyes?', 'Loss of peripheral (side) vision?', 'Unexplained weight changes — gain or loss?', 'Changes in menstrual cycle or sexual function?', 'Unusual fatigue or tiredness on a daily basis?', 'Abnormal growth of hands, feet, or facial features?', 'Changes in mood, anxiety, or unexplained depression?', 'Increased thirst or frequent urination?']
+    };
+
+    const type = localStorage.getItem('tumor_type') || 'Glioma';
+    const conf = parseFloat(localStorage.getItem('confidence') || '0').toFixed(1);
+
+    document.getElementById('log-readout').innerHTML = `
+        > processing_layer_matrices...<br>
+        > spatial_anomaly_detected<br><br>
+        > primary_class: <span class="val">${type}</span><br>
+        > struct_confidence: <span class="val">${conf}%</span><br><br>
+        <span style="color:var(--muted)">> awaiting_symptom_cross_ref...</span>
+    `;
+
+    const qs = QUESTIONS[type] || QUESTIONS['Glioma'];
+    const cont = document.getElementById('q-container');
+
+    qs.forEach((q, i) => {
+        cont.innerHTML += `
+            <div class="question-card" id="qc-${i}">
+                <div class="q-text">${q}</div>
+                <div class="toggle-group">
+                    <input type="radio" id="y${i}" name="q${i}" value="yes" onchange="update(${i})"><label for="y${i}">YES</label>
+                    <input type="radio" id="n${i}" name="q${i}" value="no" onchange="update(${i})"><label for="n${i}">NO</label>
+                </div>
+            </div>
+        `;
+    });
+
+    function update(idx) {
+        document.getElementById(`qc-${idx}`).classList.add('answered');
+        const ans = document.querySelectorAll('.question-card.answered').length;
+        document.getElementById('p-text').textContent = `${ans} / ${qs.length}`;
+        document.getElementById('p-fill').style.width = `${(ans / qs.length) * 100}%`;
+    }
+
+    function autoAnswer() {
+        qs.forEach((q, i) => {
+            const yesToggle = document.getElementById(`y${i}`);
+            yesToggle.checked = true;
+            update(i);
+        });
+    }
+
+    function submitAnswers() {
+        const answers = [];
+        for (let i = 0; i < qs.length; i++) {
+            const val = document.querySelector(`input[name="q${i}"]:checked`);
+            if (!val) return alert("Please finalize all biological variables to continue.");
+            answers.push(val.value);
+        }
+        localStorage.setItem('symptom_answers', JSON.stringify(answers));
+        
+        document.body.classList.remove('loaded');
+        document.body.classList.add('exiting');
+        setTimeout(() => { window.location.href = 'page3.html'; }, 700);
+    }
+</script>
+</body>
+</html>
