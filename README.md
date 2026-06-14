@@ -1,11 +1,3 @@
-# Hackathons-Project
-It is an Ml model which takes MRI Images and detectes tumor in the brain and the give us results on a website
-Here is a highly professional, enterprise-grade `README.md` file tailored exactly to the LuminaNeuro application you just built.
-
-It is formatted perfectly for GitHub and highlights all the impressive "flex features" we added to impress the Code-Storm 26 judges.
-
----
-
 # 🧠 LuminaNeuro
 
 ### AI-Powered Autonomous Triage for Structural MRI Scans
