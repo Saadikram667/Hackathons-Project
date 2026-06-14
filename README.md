@@ -92,4 +92,4 @@ Open your web browser and navigate to:
 ### 🏆 Built for Code-Storm 26
 
 * **Team:** Aplha X
-* **Category:** Ai assignment & agents 
+* **Category:** Ai assistant & agents 
