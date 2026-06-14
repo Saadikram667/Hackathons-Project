@@ -85,11 +85,11 @@ Open your web browser and navigate to:
 1. **Ingestion Protocol:** The medical professional enters the Subject ID, Patient Name, DOB, and Gender on the home screen (`index.html`).
 2. **Matrix Upload:** The user drags and drops the patient's `.jpg`, `.png`, or `.dcm` structural MRI scan.
 3. **Initialization:** The backend processes the tensor array and returns the classification and confidence score.
-4. **Diagnostic Dossier:** The user is seamlessly routed to the Unified Result Page (`result.html`). The UI assesses the risk level and dynamically formats the environment to either a Safe (Teal) or Critical (Red) state, displaying the scan, the AI heatmap, and actionable clinical next steps.
+4. **Diagnostic Dossier:** The user is seamlessly routed to the Unified Result Page (`page 3.html`). The UI assesses the risk level and dynamically formats the environment to either a Safe (Teal) or Critical (Red) state, displaying the scan, the AI heatmap, and actionable clinical next steps.
 
 ---
 
 ### 🏆 Built for Code-Storm 26
 
-* **Team:** [Your Team Name]
-* **Category:** Healthcare & Artificial Intelligence (AI)
+* **Team:** Aplha X
+* **Category:** Ai assignment & agents 
